@@ -1,9 +1,5 @@
 # Health Risk Assessment of Family Members Using a Fuzzy Decision Support System (FDSS)
 
-![Python Version](https://img.shields.io)
-![License](https://img.shields.io)
-![Field](https://img.shields.io)
-
 ## 📌 Project Overview
 Traditional medical decision-making often struggles with the inherent uncertainty and complexity of physiological and lifestyle data. This project implements a **Fuzzy Decision Support System (FDSS)** to assess health risk levels by integrating multiple heterogeneous parameters, including age, BMI, blood pressure, lifestyle habits, and medical history.
 
