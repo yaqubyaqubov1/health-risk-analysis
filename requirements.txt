@@ -1,0 +1,5 @@
+# Data manipulation and vector math
+numpy>=1.20.0
+
+# Academic visualization and plotting
+matplotlib>=3.4.0
