@@ -82,8 +82,8 @@ bmi = st.session_state.bmi_input
 
 systolic_bp = st.sidebar.number_input(
     "Systolic Blood Pressure (mmHg)", 
-    min_value=80, 
-    max_value=200, 
+    min_value=40, 
+    max_value=220, 
     value=120, 
     step=1
 )
