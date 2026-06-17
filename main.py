@@ -82,9 +82,17 @@ bmi = st.session_state.bmi_input
 
 systolic_bp = st.sidebar.number_input(
     "Systolic Blood Pressure (mmHg)", 
-    min_value=40, 
+    min_value=0, 
     max_value=220, 
     value=120, 
+    step=1
+)
+
+diastolic_bp = st.sidebar.number_input(
+    "Diastolic Blood Pressure (mmHg)", 
+    min_value=40, 
+    max_value=140, 
+    value=80, 
     step=1
 )
 
@@ -160,15 +168,13 @@ fuzzy_values = np.array([mu_age, mu_bmi, mu_bp, mu_lifestyle, mu_med])
 # Defuzzification / Weighted Synthesis Layer
 overall_risk_index = np.dot(fuzzy_values, weights)
 
-# 1. Base Defuzzification Calculation
-overall_risk_index = np.dot(fuzzy_values, weights)
+# Check if either vital represents an absolute critical emergency
+is_emergency = (systolic_bp <= 40 or systolic_bp >= 220 or diastolic_bp <= 30 or diastolic_bp >= 120)
 
-# 2. Categorization Logic with Clinical Emergency Override Rules
-if systolic_bp <= 40 or systolic_bp >= 220:
-    # Critical vital override: force maximum emergency bounds
+if is_emergency:
     risk_category = "🔴 High Risk (CRITICAL OVERRIDE)"
     risk_color = "red"
-    overall_risk_index = 1.00  # Force index to max to reflect emergency state
+    overall_risk_index = 1.00  # Force to max to reflect emergency state
 elif overall_risk_index < 0.35:
     risk_category = "🟢 Low Risk"
     risk_color = "green"
@@ -187,10 +193,10 @@ with col1:
     st.subheader(f"Analysis Profile: {member_name}")
     
     # --- Critical Vitals Warning Checks ---
-    if systolic_bp <= 40:
-        st.error("🚨 **CRITICAL MEDICAL EMERGENCY**: Systolic Blood Pressure of 40 mmHg or below indicates extreme, life-threatening hypotension (shock). This state is incompatible with sustained cellular life without immediate resuscitation.")
-    elif systolic_bp >= 220:
-        st.error("🚨 **CRITICAL MEDICAL EMERGENCY**: Systolic Blood Pressure has reached or exceeded 220 mmHg. This represents an extreme hypertensive crisis with a catastrophic risk of immediate organ failure, stroke, or fatal cardiovascular rupture.")
+     if systolic_bp <= 40 or diastolic_bp <= 30:
+        st.error("🚨 **CRITICAL MEDICAL EMERGENCY**: Blood pressure indicates extreme, life-threatening hypotension (shock). This state is incompatible with sustained cellular life without immediate medical intervention.")
+    elif systolic_bp >= 220 or diastolic_bp >= 120:
+        st.error("🚨 **CRITICAL MEDICAL EMERGENCY**: Blood pressure indicates an extreme hypertensive crisis. This represents a catastrophic risk of immediate organ failure, stroke, or fatal cardiovascular events.")
     
     # Showcase primary system metrics clearly
     st.metric(label="Overall Risk Index (μ)", value=f"{overall_risk_index:.2f}")
