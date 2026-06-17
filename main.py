@@ -177,7 +177,7 @@ col1, col2 = st.columns([1, 1])
 with col1:
     st.subheader(f"Analysis Profile: {member_name}")
 
-    if systolic_bp <= 40:
+if systolic_bp <= 40:
     st.error("🚨 **CRITICAL MEDICAL EMERGENCY**: Systolic Blood Pressure of 40 mmHg or below indicates extreme, life-threatening hypotension (shock). This state is incompatible with sustained cellular life without immediate resuscitation.")
 elif systolic_bp >= 220:
     st.error("🚨 **CRITICAL MEDICAL EMERGENCY**: Systolic Blood Pressure has reached or exceeded 220 mmHg. This represents an extreme hypertensive crisis with a catastrophic risk of immediate organ failure, stroke, or fatal cardiovascular rupture.")
