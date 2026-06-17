@@ -35,33 +35,34 @@ age = st.sidebar.number_input(
     step=1
 )
 
-calculate_bmi = st.sidebar.checkbox("📐 Don't know your BMI? Calculate it", value=False)
+bmi = st.sidebar.number_input(
+    "Body Mass Index (BMI)", 
+    min_value=10.0, 
+    max_value=50.0, 
+    value=24.5, 
+    step=0.1, 
+    format="%.1f"
+)
 
-if calculate_bmi:
-    with st.sidebar.expander("BMI Calculator Tool", expanded=True):
-        st.markdown(f"**Context Age fetched:** `{age}` years old")
-        gender = st.selectbox("Biological Gender", ["Male", "Female", "Other"])
-        
-        # Inputs for calculation
-        height_cm = st.number_input("Height (in cm)", min_value=100.0, max_value=250.0, value=175.0, step=0.5)
-        weight_kg = st.number_input("Weight (in kg)", min_value=30.0, max_value=250.0, value=75.0, step=0.5)
-        
-        # Standard BMI algorithm formula: kg / m^2
-        calculated_bmi_val = weight_kg / ((height_cm / 100) ** 2)
-        st.info(f"Calculated BMI: **{calculated_bmi_val:.1f}**")
-        
-        # Override the baseline bmi variable with the calculated value
-        bmi = float(round(calculated_bmi_val, 1))
-else:
-    # Standard fallback typing input if they already know their BMI
-    bmi = st.sidebar.number_input(
-        "Body Mass Index (BMI)", 
-        min_value=10.0, 
-        max_value=50.0, 
-        value=24.5, 
-        step=0.1, 
-        format="%.1f"
-    )
+# 2. Calculator Tool placed directly underneath
+with st.sidebar.expander("📐 Don't know your BMI? Calculate it here"):
+    st.markdown(f"**Context Age fetched:** `{age}` years old")
+    gender = st.selectbox("Biological Gender", ["Male", "Female", "Other"])
+    
+    # Calculation inputs
+    height_cm = st.number_input("Height (in cm)", min_value=100.0, max_value=250.0, value=175.0, step=0.5)
+    weight_kg = st.number_input("Weight (in kg)", min_value=30.0, max_value=250.0, value=75.0, step=0.5)
+    
+    # Standard BMI Algorithm (kg / m^2)
+    calculated_bmi_val = weight_kg / ((height_cm / 100) ** 2)
+    calculated_bmi_val = float(round(calculated_bmi_val, 1))
+    
+    # Check if user has changed height/weight from default values to trigger override
+    if height_cm != 175.0 or weight_kg != 75.0:
+        bmi = calculated_bmi_val
+        st.success(f"Applying Calculated BMI: **{bmi}**")
+    else:
+        st.info(f"Calculated BMI would be: **{calculated_bmi_val}**")
 
 systolic_bp = st.sidebar.number_input(
     "Systolic Blood Pressure (mmHg)", 
