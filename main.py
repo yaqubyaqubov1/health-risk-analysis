@@ -27,9 +27,31 @@ member_name = st.sidebar.text_input("Family Member Name", value="John Doe")
 
 
 # Quantifiable variables
-age = st.sidebar.slider("Age (Years)", min_value=1, max_value=100, value=35)
-bmi = st.sidebar.slider("Body Mass Index (BMI)", min_value=10.0, max_value=50.0, value=24.5, step=0.1)
-systolic_bp = st.sidebar.slider("Systolic Blood Pressure (mmHg)", min_value=80, max_value=200, value=120)
+age = st.sidebar.number_input(
+    "Age (Years)", 
+    min_value=1, 
+    max_value=100, 
+    value=35, 
+    step=1
+)
+
+bmi = st.sidebar.number_input(
+    "Body Mass Index (BMI)", 
+    min_value=10.0, 
+    max_value=50.0, 
+    value=24.5, 
+    step=0.1, 
+    format="%.1f"
+)
+
+systolic_bp = st.sidebar.number_input(
+    "Systolic Blood Pressure (mmHg)", 
+    min_value=80, 
+    max_value=200, 
+    value=120, 
+    step=1
+)
+
 
 # Categorical variables mapped to categorical membership values
 st.sidebar.header("🏃‍♂️ Lifestyle & Medical Context")
