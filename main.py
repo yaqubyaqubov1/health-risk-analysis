@@ -20,11 +20,31 @@ By shifting away from strict binary limits, it maps human health uncertainty cle
 
 st.divider()
 
-# ---------------------------------------------------------
 # 2. Sidebar Input Layer (User Parameters)
-# ---------------------------------------------------------
+
 st.sidebar.header("👤 Patient Demographics & Vitals")
 member_name = st.sidebar.text_input("Family Member Name", value="John Doe")
+
+# --- INSERT THIS BLOCK FOR THE CHRONIC DIAGNOSIS TRACKING ---
+st.sidebar.header("📋 Clinical Health History")
+health_status = st.sidebar.radio(
+    "Current Health Status",
+    options=["Healthy", "Has Existing Diagnosis / Diagnoses"],
+    index=0
+)
+
+selected_diagnoses = []
+if health_status == "Has Existing Diagnosis / Diagnoses":
+    selected_diagnoses = st.sidebar.multiselect(
+        "Select Confirmed Diagnoses:",
+        options=[
+            "Diabetes", 
+            "Hypertension", 
+            "Hashimoto's", 
+            "Other Chronic Conditions"
+        ],
+        default=[]
+    )
 
 # Quantifiable variables
 age = st.sidebar.slider("Age (Years)", min_value=1, max_value=100, value=35)
@@ -45,9 +65,9 @@ med_history_score = st.sidebar.selectbox(
     index=0
 )
 
-# ---------------------------------------------------------
+
 # 3. Fuzzy Inference Engine & Aggregation Logic
-# ---------------------------------------------------------
+
 # Helper functions for Fuzzification (Mapping parameters cleanly to 0.0 - 1.0 risk weight)
 def fuzzify_age(val):
     if val < 30: return 0.2
@@ -93,9 +113,7 @@ else:
     risk_category = "🔴 High Risk"
     risk_color = "red"
 
-# ---------------------------------------------------------
 # 4. Interactive UI Display Layout
-# ---------------------------------------------------------
 col1, col2 = st.columns([1, 1])
 
 with col1:
