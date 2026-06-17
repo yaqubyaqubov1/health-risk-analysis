@@ -1,60 +1,141 @@
+import streamlit as st
+import numpy as np
 import matplotlib.pyplot as plt
 
-def get_fuzzy_value(value, param_type, person_name=None):
-    if param_type  == "age":
-        if value >= 70: return 1.0
-        if value >= 65: return 0.9
-        if value <= 40: return 0.4
-        return round((value / 70), 1)
+# ---------------------------------------------------------
+# 1. Page Configuration & UI Layout
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="Fuzzy Health Risk Assessment",
+    page_icon="🏥",
+    layout="wide"
+)
 
-    elif param_type  == "lifestyle":
-        return 0.7 if value.lower()  == "passive" else 0.5
+st.title("🏥 Fuzzy Decision Support System (FDSS)")
+st.subheader("Family Member Health Risk Assessment Dashboard")
+st.markdown("""
+This system uses **Fuzzy Logic principles** to evaluate health risk index on a normalized scale (0 to 1). 
+By shifting away from strict binary limits, it maps human health uncertainty cleanly using a heuristic priority vector.
+""")
 
-    elif param_type  == "blood_pressure":
-        if "-" in value:
-            systolic = int(value.split("-")[1])
-            if systolic >= 140: return 0.8
-            if systolic <= 110: return 0.2
-            if systolic <= 120:
-                return 0.4 if person_name  == "Grandfather" else 0.3
-        return 0.5
+st.divider()
 
-    return 0.1
+# ---------------------------------------------------------
+# 2. Sidebar Input Layer (User Parameters)
+# ---------------------------------------------------------
+st.sidebar.header("👤 Patient Demographics & Vitals")
+member_name = st.sidebar.text_input("Family Member Name", value="John Doe")
 
-family_data = {
-    "Father":      {"age": 40, "lifestyle": "Passive", "bp": "80-140", "habits": 0.9, "medical": 0.2},
-    "Mother":      {"age": 40, "lifestyle": "Active",  "bp": "70-120", "habits": 0.1, "medical": 0.6},
-    "Grandmother": {"age": 65, "lifestyle": "Passive", "bp": "85-140", "habits": 0.1, "medical": 0.9},
-    "Grandfather": {"age": 70, "lifestyle": "Passive", "bp": "70-120", "habits": 0.2, "medical": 0.9},
-    "Aunt":        {"age": 40, "lifestyle": "Passive", "bp": "70-110", "habits": 0.2, "medical": 0.1}
-}
+# Quantifiable variables
+age = st.sidebar.slider("Age (Years)", min_value=1, max_value=100, value=35)
+bmi = st.sidebar.slider("Body Mass Index (BMI)", min_value=10.0, max_value=50.0, value=24.5, step=0.1)
+systolic_bp = st.sidebar.slider("Systolic Blood Pressure (mmHg)", min_value=80, max_value=200, value=120)
 
-weights = [0.25, 0.20, 0.20, 0.25, 0.10]
+# Categorical variables mapped to categorical membership values
+st.sidebar.header("🏃‍♂️ Lifestyle & Medical Context")
+lifestyle_score = st.sidebar.selectbox(
+    "Lifestyle Habits",
+    options=["Excellent (Active, Balanced Diet)", "Moderate (Sedentary, Standard Diet)", "Poor (Smoking, High Stress)"],
+    index=1
+)
 
-print(f"{'Member':<12} | {'Fuzzy Values (μ)':<35} | {'Final Risk Score'}")
-print("-" * 75)
+med_history_score = st.sidebar.selectbox(
+    "Family Medical History Risk",
+    options=["No Genetic Risk Factors", "Minor Conditions (e.g., Mild Allergies)", "Major Conditions (e.g., Cardiovascular / Diabetes)"],
+    index=0
+)
 
-names = []
-final_scores = []
+# ---------------------------------------------------------
+# 3. Fuzzy Inference Engine & Aggregation Logic
+# ---------------------------------------------------------
+# Helper functions for Fuzzification (Mapping parameters cleanly to 0.0 - 1.0 risk weight)
+def fuzzify_age(val):
+    if val < 30: return 0.2
+    if val < 55: return 0.6
+    return 1.0
 
-for person, info in family_data.items():
-    f_age = get_fuzzy_value(info["age"], "age")
-    f_life = get_fuzzy_value(info["lifestyle"], "lifestyle")
-    f_bp = get_fuzzy_value(info["bp"], "blood_pressure", person)
-    f_med = info["medical"]
-    f_habits = info["habits"]
+def fuzzify_bmi(val):
+    if 18.5 <= val <= 24.9: return 0.1  # Normal
+    if 25.0 <= val <= 29.9: return 0.5  # Overweight
+    return 1.0  # Obese / Underweight risk
 
-    fuzzy_set = [f_age, f_life, f_bp, f_med, f_habits]
-    risk_score = round(sum(parameter * w for parameter, w in zip(fuzzy_set, weights)), 2)
+def fuzzify_bp(val):
+    if val < 120: return 0.1
+    if val < 140: return 0.5
+    return 1.0
 
-    print(f"{person:<12} | {str(fuzzy_set):<35} | {risk_score}")
+# Extract numerical scores for categorical variables
+lifestyle_map = {"Excellent (Active, Balanced Diet)": 0.1, "Moderate (Sedentary, Standard Diet)": 0.5, "Poor (Smoking, High Stress)": 1.0}
+med_map = {"No Genetic Risk Factors": 0.1, "Minor Conditions (e.g., Mild Allergies)": 0.4, "Major Conditions (e.g., Cardiovascular / Diabetes)": 1.0}
 
-    names.append(person)
-    final_scores.append(risk_score)
+# Generate crisp fuzzy values
+mu_age = fuzzify_age(age)
+mu_bmi = fuzzify_bmi(bmi)
+mu_bp = fuzzify_bp(systolic_bp)
+mu_lifestyle = lifestyle_map[lifestyle_score]
+mu_med = med_map[med_history_score]
 
-plt.figure(figsize=(9, 5))
-plt.bar(names, final_scores, color='cadetblue')
-plt.title("FamAi Health Risk Assessment")
-plt.ylabel("Risk Score (μ)")
-plt.ylim(0, 1.0)
-plt.show()
+# Clinical priority vector aggregation layer
+weights = np.array([0.25, 0.20, 0.20, 0.25, 0.10])  # Explicit clinical weightings
+fuzzy_values = np.array([mu_age, mu_bmi, mu_bp, mu_lifestyle, mu_med])
+
+# Defuzzification / Weighted Synthesis Layer
+overall_risk_index = np.dot(fuzzy_values, weights)
+
+# Categorization logic
+if overall_risk_index < 0.35:
+    risk_category = "🟢 Low Risk"
+    risk_color = "green"
+elif overall_risk_index < 0.70:
+    risk_category = "🟡 Moderate Risk"
+    risk_color = "orange"
+else:
+    risk_category = "🔴 High Risk"
+    risk_color = "red"
+
+# ---------------------------------------------------------
+# 4. Interactive UI Display Layout
+# ---------------------------------------------------------
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    st.subheader(f"Analysis Profile: {member_name}")
+    
+    # Showcase primary system metrics clearly
+    st.metric(label="Overall Risk Index (μ)", value=f"{overall_risk_index:.2f}")
+    st.markdown(f"Inferred Status Category: **:{risk_color}[{risk_category}]**")
+    
+    # Display precise breakdown tables
+    st.markdown("### 📊 Factor Membership Risk Breakdown")
+    breakdown_data = {
+        "Fuzzy Metric Indicator": ["Age Risk (μ1)", "BMI Risk (μ2)", "BP Risk (μ3)", "Lifestyle Risk (μ4)", "Medical History Risk (μ5)"],
+        "Assigned Priority Weight": weights,
+        "Calculated Fuzzy Value": fuzzy_values
+    }
+    st.table(breakdown_data)
+
+with col2:
+    st.subheader("🕸️ Comparative Radar Profile")
+    
+    # Dynamic Radar Chart Generation Loop using Matplotlib
+    labels = ['Age', 'BMI', 'Blood Pressure', 'Lifestyle', 'Medical Hist.']
+    num_vars = len(labels)
+    
+    # Split the circle into even arcs
+    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+    
+    # Connect the circular radar layout cleanly loop back
+    values = fuzzy_values.tolist()
+    values += values[:1]
+    angles += angles[:1]
+    
+    fig, ax = plt.subplots(figsize=(5, 5), subplot_kw=dict(polar=True))
+    ax.fill(angles, values, color='#ff4b4b', alpha=0.25)
+    ax.plot(angles, values, color='#ff4b4b', linewidth=2)
+    
+    ax.set_yticklabels([])  # Hide traditional grid axis text for modern layout
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels, fontsize=10)
+    ax.set_title(f"Health Vector Signature: {member_name}", size=12, y=1.1)
+    
+    st.pyplot(fig)  # Direct native layout embedding
