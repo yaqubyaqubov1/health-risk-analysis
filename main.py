@@ -193,7 +193,7 @@ with col1:
     st.subheader(f"Analysis Profile: {member_name}")
     
     # --- Critical Vitals Warning Checks ---
-     if systolic_bp <= 40 or diastolic_bp <= 30:
+    if systolic_bp <= 40 or diastolic_bp <= 30:
         st.error("🚨 **CRITICAL MEDICAL EMERGENCY**: Blood pressure indicates extreme, life-threatening hypotension (shock). This state is incompatible with sustained cellular life without immediate medical intervention.")
     elif systolic_bp >= 220 or diastolic_bp >= 120:
         st.error("🚨 **CRITICAL MEDICAL EMERGENCY**: Blood pressure indicates an extreme hypertensive crisis. This represents a catastrophic risk of immediate organ failure, stroke, or fatal cardiovascular events.")
