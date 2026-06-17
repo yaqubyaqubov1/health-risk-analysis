@@ -31,52 +31,84 @@ age = st.sidebar.slider("Age (Years)", min_value=1, max_value=100, value=35)
 bmi = st.sidebar.slider("Body Mass Index (BMI)", min_value=10.0, max_value=50.0, value=24.5, step=0.1)
 systolic_bp = st.sidebar.slider("Systolic Blood Pressure (mmHg)", min_value=80, max_value=200, value=120)
 
-# Categorical variables mapped to categorical membership values
-st.sidebar.header("🏃‍♂️ Lifestyle & Medical Context")
+st.sidebar.header("🏃‍♂️ Lifestyle Context")
 lifestyle_score = st.sidebar.selectbox(
     "Lifestyle Habits",
     options=["Excellent (Active, Balanced Diet)", "Moderate (Sedentary, Standard Diet)", "Poor (Smoking, High Stress)"],
     index=1
 )
 
-med_history_score = st.sidebar.selectbox(
-    "Family Medical History Risk",
-    options=["No Genetic Risk Factors", "Minor Conditions (e.g., Mild Allergies)", "Major Conditions (e.g., Cardiovascular / Diabetes)"],
+# NEW SECTION: Chronic Medical Diagnosis Sidebar Tracking
+st.sidebar.header("📋 Clinical Health History")
+health_status = st.sidebar.radio(
+    "General Health Status",
+    options=["Healthy / No Known Conditions", "Has Existing Diagnosis / Diagnoses"],
     index=0
 )
+
+# Render diagnoses choices dynamically if they aren't marked as completely healthy
+selected_diagnoses = []
+if health_status == "Has Existing Diagnosis / Diagnoses":
+    selected_diagnoses = st.sidebar.multiselect(
+        "Select Confirmed Diagnoses:",
+        options=[
+            "Hypertension (High Blood Pressure)",
+            "Diabetes (Type 1 or Type 2)",
+            "Hashimoto's Thyroiditis (Autoimmune)",
+            "Hypercholesterolemia (High Cholesterol)",
+            "Asthma / Chronic Respiratory",
+            "Other Autoimmune / Chronic Diagnosis"
+        ],
+        help="You can select multiple conditions. This will mathematically adjust the systemic history risk value."
+    )
 
 # ---------------------------------------------------------
 # 3. Fuzzy Inference Engine & Aggregation Logic
 # ---------------------------------------------------------
-# Helper functions for Fuzzification (Mapping parameters cleanly to 0.0 - 1.0 risk weight)
 def fuzzify_age(val):
     if val < 30: return 0.2
     if val < 55: return 0.6
     return 1.0
 
 def fuzzify_bmi(val):
-    if 18.5 <= val <= 24.9: return 0.1  # Normal
-    if 25.0 <= val <= 29.9: return 0.5  # Overweight
-    return 1.0  # Obese / Underweight risk
+    if 18.5 <= val <= 24.9: return 0.1  
+    if 25.0 <= val <= 29.9: return 0.5  
+    return 1.0  
 
 def fuzzify_bp(val):
     if val < 120: return 0.1
     if val < 140: return 0.5
     return 1.0
 
-# Extract numerical scores for categorical variables
+# Extract numerical scores for lifestyle
 lifestyle_map = {"Excellent (Active, Balanced Diet)": 0.1, "Moderate (Sedentary, Standard Diet)": 0.5, "Poor (Smoking, High Stress)": 1.0}
-med_map = {"No Genetic Risk Factors": 0.1, "Minor Conditions (e.g., Mild Allergies)": 0.4, "Major Conditions (e.g., Cardiovascular / Diabetes)": 1.0}
+mu_lifestyle = lifestyle_map[lifestyle_score]
 
-# Generate crisp fuzzy values
+# NEW Fuzzy Logic for Medical History / Diagnoses Score Calculation (mu_5)
+if health_status == "Healthy / No Known Conditions" or not selected_diagnoses:
+    mu_med = 0.1  # Baseline risk score for healthy profile
+else:
+    # Assign specific risk weights to different diseases
+    disease_weights = {
+        "Hypertension (High Blood Pressure)": 0.5,
+        "Diabetes (Type 1 or Type 2)": 0.6,
+        "Hashimoto's Thyroiditis (Autoimmune)": 0.4,
+        "Hypercholesterolemia (High Cholesterol)": 0.4,
+        "Asthma / Chronic Respiratory": 0.3,
+        "Other Autoimmune / Chronic Diagnosis": 0.4
+    }
+    
+    # Calculate risk using a fuzzy boundary accumulation (cap max risk at 1.0)
+    total_disease_risk = sum(disease_weights[d] for d in selected_diagnoses)
+    mu_med = min(1.0, 0.2 + total_disease_risk)
+
+# Generate remaining crisp fuzzy values
 mu_age = fuzzify_age(age)
 mu_bmi = fuzzify_bmi(bmi)
 mu_bp = fuzzify_bp(systolic_bp)
-mu_lifestyle = lifestyle_map[lifestyle_score]
-mu_med = med_map[med_history_score]
 
 # Clinical priority vector aggregation layer
-weights = np.array([0.25, 0.20, 0.20, 0.25, 0.10])  # Explicit clinical weightings
+weights = np.array([0.25, 0.20, 0.20, 0.25, 0.10])  
 fuzzy_values = np.array([mu_age, mu_bmi, mu_bp, mu_lifestyle, mu_med])
 
 # Defuzzification / Weighted Synthesis Layer
@@ -96,16 +128,20 @@ else:
 # ---------------------------------------------------------
 # 4. Interactive UI Display Layout
 # ---------------------------------------------------------
-col1, col2 = st.columns([1, 1])
+col1, col2 = st.columns()
 
 with col1:
     st.subheader(f"Analysis Profile: {member_name}")
     
-    # Showcase primary system metrics clearly
     st.metric(label="Overall Risk Index (μ)", value=f"{overall_risk_index:.2f}")
     st.markdown(f"Inferred Status Category: **:{risk_color}[{risk_category}]**")
     
-    # Display precise breakdown tables
+    # Render selected diagnoses in the main view for clarity
+    if selected_diagnoses:
+        st.markdown("**Logged Diagnoses:** " + ", ".join([f"`{d.split(' (')[0]}`" for d in selected_diagnoses]))
+    else:
+        st.markdown("**Logged Diagnoses:** `None (Healthy Profile)`")
+        
     st.markdown("### 📊 Factor Membership Risk Breakdown")
     breakdown_data = {
         "Fuzzy Metric Indicator": ["Age Risk (μ1)", "BMI Risk (μ2)", "BP Risk (μ3)", "Lifestyle Risk (μ4)", "Medical History Risk (μ5)"],
@@ -117,14 +153,11 @@ with col1:
 with col2:
     st.subheader("🕸️ Comparative Radar Profile")
     
-    # Dynamic Radar Chart Generation Loop using Matplotlib
     labels = ['Age', 'BMI', 'Blood Pressure', 'Lifestyle', 'Medical Hist.']
     num_vars = len(labels)
     
-    # Split the circle into even arcs
     angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
     
-    # Connect the circular radar layout cleanly loop back
     values = fuzzy_values.tolist()
     values += values[:1]
     angles += angles[:1]
@@ -133,9 +166,9 @@ with col2:
     ax.fill(angles, values, color='#ff4b4b', alpha=0.25)
     ax.plot(angles, values, color='#ff4b4b', linewidth=2)
     
-    ax.set_yticklabels([])  # Hide traditional grid axis text for modern layout
+    ax.set_yticklabels([])  
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_title(f"Health Vector Signature: {member_name}", size=12, y=1.1)
     
-    st.pyplot(fig)  # Direct native layout embedding
+    st.pyplot(fig)
