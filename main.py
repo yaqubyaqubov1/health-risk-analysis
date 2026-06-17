@@ -35,16 +35,21 @@ age = st.sidebar.number_input(
     step=1
 )
 
+if "bmi_value" not in st.session_state:
+    st.session_state.bmi_value = 24.5
+
+# 2. Main BMI Input Field (Tied directly to the session state key)
 bmi = st.sidebar.number_input(
     "Body Mass Index (BMI)", 
     min_value=10.0, 
     max_value=50.0, 
-    value=24.5, 
+    value=st.session_state.bmi_value, 
     step=0.1, 
-    format="%.1f"
+    format="%.1f",
+    key="bmi_input"
 )
 
-# 2. Calculator Tool placed directly underneath
+# 3. Calculator Tool placed directly underneath
 with st.sidebar.expander("📐 Don't know your BMI? Calculate it here"):
     st.markdown(f"**Context Age fetched:** `{age}` years old")
     gender = st.selectbox("Biological Gender", ["Male", "Female", "Other"])
@@ -57,12 +62,16 @@ with st.sidebar.expander("📐 Don't know your BMI? Calculate it here"):
     calculated_bmi_val = weight_kg / ((height_cm / 100) ** 2)
     calculated_bmi_val = float(round(calculated_bmi_val, 1))
     
-    # Check if user has changed height/weight from default values to trigger override
-    if height_cm != 175.0 or weight_kg != 75.0:
-        bmi = calculated_bmi_val
-        st.success(f"Applying Calculated BMI: **{bmi}**")
-    else:
-        st.info(f"Calculated BMI would be: **{calculated_bmi_val}**")
+    st.info(f"Calculated BMI Result: **{calculated_bmi_val}**")
+    
+    # 4. Action button to transfer the value
+    if st.button("Apply Result to BMI Field", use_container_width=True):
+        st.session_state.bmi_value = calculated_bmi_val
+        # Force Streamlit to immediately update the view with the new value
+        st.rerun() 
+
+# Ensure the final operational bmi variable reflects the active session state
+bmi = st.session_state.bmi_value
 
 systolic_bp = st.sidebar.number_input(
     "Systolic Blood Pressure (mmHg)", 
