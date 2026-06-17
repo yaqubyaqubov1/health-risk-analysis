@@ -160,8 +160,16 @@ fuzzy_values = np.array([mu_age, mu_bmi, mu_bp, mu_lifestyle, mu_med])
 # Defuzzification / Weighted Synthesis Layer
 overall_risk_index = np.dot(fuzzy_values, weights)
 
-# Categorization logic
-if overall_risk_index < 0.35:
+# 1. Base Defuzzification Calculation
+overall_risk_index = np.dot(fuzzy_values, weights)
+
+# 2. Categorization Logic with Clinical Emergency Override Rules
+if systolic_bp <= 40 or systolic_bp >= 220:
+    # Critical vital override: force maximum emergency bounds
+    risk_category = "🔴 High Risk (CRITICAL OVERRIDE)"
+    risk_color = "red"
+    overall_risk_index = 1.00  # Force index to max to reflect emergency state
+elif overall_risk_index < 0.35:
     risk_category = "🟢 Low Risk"
     risk_color = "green"
 elif overall_risk_index < 0.70:
