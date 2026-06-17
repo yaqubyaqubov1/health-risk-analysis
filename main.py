@@ -38,7 +38,12 @@ age = st.sidebar.number_input(
 if "bmi_value" not in st.session_state:
     st.session_state.bmi_value = 24.5
 
-# 2. Main BMI Input Field (Tied directly to the session state key)
+# Define a clean callback function to force state updates immediately on click
+def apply_calculated_bmi(val):
+    st.session_state.bmi_value = val
+    st.session_state.bmi_input = val  # Updates the number field value instantly
+
+# 2. Main BMI Input Field (bound directly to 'bmi_input' state key)
 bmi = st.sidebar.number_input(
     "Body Mass Index (BMI)", 
     min_value=10.0, 
@@ -49,7 +54,7 @@ bmi = st.sidebar.number_input(
     key="bmi_input"
 )
 
-# 3. Calculator Tool placed directly underneath
+# 3. Calculator Tool expander placed directly underneath
 with st.sidebar.expander("📐 Don't know your BMI? Calculate it here"):
     st.markdown(f"**Context Age fetched:** `{age}` years old")
     gender = st.selectbox("Biological Gender", ["Male", "Female", "Other"])
@@ -64,14 +69,16 @@ with st.sidebar.expander("📐 Don't know your BMI? Calculate it here"):
     
     st.info(f"Calculated BMI Result: **{calculated_bmi_val}**")
     
-    # 4. Action button to transfer the value
-    if st.button("Apply Result to BMI Field", use_container_width=True):
-        st.session_state.bmi_value = calculated_bmi_val
-        # Force Streamlit to immediately update the view with the new value
-        st.rerun() 
+    # 4. Action button running our direct callback update function
+    st.button(
+        "Apply Result to BMI Field", 
+        use_container_width=True,
+        on_click=apply_calculated_bmi,
+        args=(calculated_bmi_val,)
+    )
 
-# Ensure the final operational bmi variable reflects the active session state
-bmi = st.session_state.bmi_value
+# Sync our final math variable with whatever is inside the active typing field
+bmi = st.session_state.bmi_input
 
 systolic_bp = st.sidebar.number_input(
     "Systolic Blood Pressure (mmHg)", 
