@@ -25,26 +25,6 @@ st.divider()
 st.sidebar.header("👤 Patient Demographics & Vitals")
 member_name = st.sidebar.text_input("Family Member Name", value="John Doe")
 
-# --- INSERT THIS BLOCK FOR THE CHRONIC DIAGNOSIS TRACKING ---
-st.sidebar.header("📋 Clinical Health History")
-health_status = st.sidebar.radio(
-    "Current Health Status",
-    options=["Healthy", "Has Existing Diagnosis / Diagnoses"],
-    index=0
-)
-
-selected_diagnoses = []
-if health_status == "Has Existing Diagnosis / Diagnoses":
-    selected_diagnoses = st.sidebar.multiselect(
-        "Select Confirmed Diagnoses:",
-        options=[
-            "Diabetes", 
-            "Hypertension", 
-            "Hashimoto's", 
-            "Other Chronic Conditions"
-        ],
-        default=[]
-    )
 
 # Quantifiable variables
 age = st.sidebar.slider("Age (Years)", min_value=1, max_value=100, value=35)
@@ -64,6 +44,26 @@ med_history_score = st.sidebar.selectbox(
     options=["No Genetic Risk Factors", "Minor Conditions (e.g., Mild Allergies)", "Major Conditions (e.g., Cardiovascular / Diabetes)"],
     index=0
 )
+
+st.sidebar.header("📋 Clinical Health History")
+health_status = st.sidebar.radio(
+    "Current Health Status",
+    options=["Healthy", "Has Existing Diagnosis / Diagnoses"],
+    index=0
+)
+
+selected_diagnoses = []
+if health_status == "Has Existing Diagnosis / Diagnoses":
+    selected_diagnoses = st.sidebar.multiselect(
+        "Select Confirmed Diagnoses:",
+        options=[
+            "Diabetes", 
+            "Hypertension", 
+            "Hashimoto's", 
+            "Other Chronic Conditions"
+        ],
+        default=[]
+    )
 
 
 # 3. Fuzzy Inference Engine & Aggregation Logic
