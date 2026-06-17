@@ -1,126 +1,141 @@
-import os
-import sys
-import json
-from pydantic import BaseModel
-from google import genai
-from google.genai import types
+import streamlit as st
+import numpy as np
+import matplotlib.pyplot as plt
 
+# ---------------------------------------------------------
+# 1. Page Configuration & UI Layout
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="Fuzzy Health Risk Assessment",
+    page_icon="🏥",
+    layout="wide"
+)
 
-def ai_qebul_komitesi_mentoru():
-    # 1. API AÇARININ AXTARILMASI VƏ TƏYİN EDİLMƏSİ
-    api_key = os.environ.get("AIzaSyDYo387t77TFs5QHwaquTeNICBL_j0jXUU")
+st.title("🏥 Fuzzy Decision Support System (FDSS)")
+st.subheader("Family Member Health Risk Assessment Dashboard")
+st.markdown("""
+This system uses **Fuzzy Logic principles** to evaluate health risk index on a normalized scale (0 to 1). 
+By shifting away from strict binary limits, it maps human health uncertainty cleanly using a heuristic priority vector.
+""")
 
-    # Əgər mühit dəyişəni tapılmasa, istifadəçidən birbaşa daxil etməsini istəyirik
-    if not api_key:
-        print("Məlumat: GEMINI_API_KEY mühit dəyişəni sistemdə tapılmadı.")
-        api_key = input("Zəhmət olmasa Gemini API açarınızı bura yapışdırın: ").strip()
+st.divider()
 
-    if not api_key:
-        print("Xəta: API açarı daxil edilmədiyi üçün proqram dayandırılır.")
-        return
+# ---------------------------------------------------------
+# 2. Sidebar Input Layer (User Parameters)
+# ---------------------------------------------------------
+st.sidebar.header("👤 Patient Demographics & Vitals")
+member_name = st.sidebar.text_input("Family Member Name", value="John Doe")
 
-    # Klienti daxil edilən açarla başladırıq
-    try:
-        client = genai.Client(api_key=api_key)
-    except Exception as e:
-        print(f"Klient yaradılarkən xəta: {e}")
-        return
+# Quantifiable variables
+age = st.sidebar.slider("Age (Years)", min_value=1, max_value=100, value=35)
+bmi = st.sidebar.slider("Body Mass Index (BMI)", min_value=10.0, max_value=50.0, value=24.5, step=0.1)
+systolic_bp = st.sidebar.slider("Systolic Blood Pressure (mmHg)", min_value=80, max_value=200, value=120)
 
-    print("\n=== GEMINI 2.5 FLASH İLƏ HOLİSTİK QƏBUL ANALİZİ ===\n")
-    print("Özünüz, təhsiliniz, layihələriniz, nailiyyətləriniz və məhdudiyyətləriniz")
-    print("barədə geniş məlumat yazın.")
-    print("(Yazını bitirmək üçün yeni sətirdə Windows-da CTRL+Z, Mac/Linux-da CTRL+D sıxın və ya Enter-ə basın):\n")
+# Categorical variables mapped to categorical membership values
+st.sidebar.header("🏃‍♂️ Lifestyle & Medical Context")
+lifestyle_score = st.sidebar.selectbox(
+    "Lifestyle Habits",
+    options=["Excellent (Active, Balanced Diet)", "Moderate (Sedentary, Standard Diet)", "Poor (Smoking, High Stress)"],
+    index=1
+)
 
-    # Çoxsətirli mətn qəbulu
-    user_story = sys.stdin.read()
+med_history_score = st.sidebar.selectbox(
+    "Family Medical History Risk",
+    options=["No Genetic Risk Factors", "Minor Conditions (e.g., Mild Allergies)", "Major Conditions (e.g., Cardiovascular / Diabetes)"],
+    index=0
+)
 
-    if not user_story.strip():
-        print("Mətn daxil edilmədi. Proqram dayandırılır.")
-        return
+# ---------------------------------------------------------
+# 3. Fuzzy Inference Engine & Aggregation Logic
+# ---------------------------------------------------------
+# Helper functions for Fuzzification (Mapping parameters cleanly to 0.0 - 1.0 risk weight)
+def fuzzify_age(val):
+    if val < 30: return 0.2
+    if val < 55: return 0.6
+    return 1.0
 
-    print("\n[Süni İntellekt müraciəti analiz edir və insider qərarlarını formalaşdırır...]")
+def fuzzify_bmi(val):
+    if 18.5 <= val <= 24.9: return 0.1  # Normal
+    if 25.0 <= val <= 29.9: return 0.5  # Overweight
+    return 1.0  # Obese / Underweight risk
 
-    # 2. STRUKTURLU ÇIXIŞ SXEMİ
-    class Universitet(BaseModel):
-        ad: str
-        zona: str
-        teqaub_imkani: str
-        esas_sebeb: str
+def fuzzify_bp(val):
+    if val < 120: return 0.1
+    if val < 140: return 0.5
+    return 1.0
 
-    class MentorAnalizi(BaseModel):
-        muracietci_adi: str
-        tehsil_seviyyesi: str
-        akademik_indeks: float
-        profil_indeksi: float
-        resurs_kompensasiya_emsali: float
-        yekun_ferdi_profil_gucu: float
-        iti_bucaq_fokusu_tesviri: str
-        universitetler: list[Universitet]
-        strateji_tovsiye: str
+# Extract numerical scores for categorical variables
+lifestyle_map = {"Excellent (Active, Balanced Diet)": 0.1, "Moderate (Sedentary, Standard Diet)": 0.5, "Poor (Smoking, High Stress)": 1.0}
+med_map = {"No Genetic Risk Factors": 0.1, "Minor Conditions (e.g., Mild Allergies)": 0.4, "Major Conditions (e.g., Cardiovascular / Diabetes)": 1.0}
 
-    system_prompt = """
-    Sən ABŞ-ın Ivy League və Böyük Britaniyanın Russell Group universitetlərinin beynəlxalq qəbul komitəsinin rəhbərisən. Qarşındakı müraciətçinin sərbəst yazdığı bioqrafiyanı, nailiyyətlərini və şəraitini "Holistik Baxış" (Holistic Review) fəlsəfəsi ilə təhlil etməlisən.
+# Generate crisp fuzzy values
+mu_age = fuzzify_age(age)
+mu_bmi = fuzzify_bmi(bmi)
+mu_bp = fuzzify_bp(systolic_bp)
+mu_lifestyle = lifestyle_map[lifestyle_score]
+mu_med = med_map[med_history_score]
 
-İstifadəçinin mətnini oxuyarkən aşağıdakı daxili məntiqlə hərəkət et:
+# Clinical priority vector aggregation layer
+weights = np.array([0.25, 0.20, 0.20, 0.25, 0.10])  # Explicit clinical weightings
+fuzzy_values = np.array([mu_age, mu_bmi, mu_bp, mu_lifestyle, mu_med])
 
-1. TƏHSİL SƏVİYYƏSİNİN TƏYİNİ:
-- Əgər müraciətçi məktəblidirsə, universitetə yeni hazırlaşırsa və ya heç bir bakalavr dərəcəsi yoxdursa, "tehsil_seviyyesi" sahəsini "Bachelor" təyin et.
-- Əgər bakalavrdırsa, universiteti bitiribsə və ya korporativ iş təcrübəsi (məs. bank, şirkət, laboratoriya) varsa, "Master" təyin et.
+# Defuzzification / Weighted Synthesis Layer
+overall_risk_index = np.dot(fuzzy_values, weights)
 
-2. ANALİTİK STATİSTİKANIN GENERASİYASI (100 ballıq şkala ilə):
-- akademik_indeks: Qiymətlərə (GPA), imtahanlara (SAT/IELTS) və ən əsası qiymət dinamikasına bax. Əgər tələbə ilk illər zəif, son illər güclü oxuyubsa, intellektual yetkinləşmə bonusu ver. SAT yoxdursa, GPA və digər akademik uğurları süzgəcdən keçir.
-- profil_indeksi: Fəaliyyətlərin sayına yox, dərinliyinə bax. 12 aydan çox davam edən layihələrə yüksək bal ver.
-- resurs_kompensasiya_emsali: Bu ən kritik məqamdır. Əgər tələbə resursları kəskin məhdud olan bir mühitdən (məsələn, Azərbaycanın regionları, kənd məktəbi, internet qıtlığı olan yerlər) gəlirsə və buna rəğmən uğur qazanıbsa, bu balı maksimuma (90-100) yaxınlaşdır. Elit, bahalı özəl məktəb tələbələrinin standart uğurlarına isə kompensasiya balını aşağı (30-50) ver.
-- yekun_ferdi_profil_gucu: Bu üç indeksin kontekstual çəkili ortalamasını çıxar.
+# Categorization logic
+if overall_risk_index < 0.35:
+    risk_category = "🟢 Low Risk"
+    risk_color = "green"
+elif overall_risk_index < 0.70:
+    risk_category = "🟡 Moderate Risk"
+    risk_color = "orange"
+else:
+    risk_category = "🔴 High Risk"
+    risk_color = "red"
 
-3. İTİ BUCAQ FOKUSU (Spike):
-- Azərbaycan bazarındakı "hər şeydən bir az edən" dağınıq profilləri tənqid et. Tələbənin bütün fəaliyyətlərini birləşdirən o tək "iti küncü" (məsələn, texnologiyanı sosial rifah üçün istifadə etmək, rəqəmsal humanitar elmlər və s.) tap və "iti_bucaq_fokusu_tesviri" sahəsində şərh et.
+# ---------------------------------------------------------
+# 4. Interactive UI Display Layout
+# ---------------------------------------------------------
+col1, col2 = st.columns([1, 1])
 
-4. STRATEJİ UNİVERSİTET SEÇİMİ:
-- Tələbənin profil gücünə uyğun olaraq real ABŞ və Britaniya universitetlərini 3 zonaya böl: "Sigorta" (mütləq qəbul), "Hedef" (tam uzlaşan və təqaüd şansı yüksək), "Arzu" (çətin, amma insider esselərlə möcüzə yaradıla biləcək Ivy League proqramları).
-- Hər universitet üçün daxili maliyyə fondlarını (Need-Blind, Need-Based, Merit-Based) araşdırıb təqaüd növünü dəqiq yaz və qəbul komitəsi adından daxili qəbul sirrini ("esas_sebeb") izah et.
+with col1:
+    st.subheader(f"Analysis Profile: {member_name}")
+    
+    # Showcase primary system metrics clearly
+    st.metric(label="Overall Risk Index (μ)", value=f"{overall_risk_index:.2f}")
+    st.markdown(f"Inferred Status Category: **:{risk_color}[{risk_category}]**")
+    
+    # Display precise breakdown tables
+    st.markdown("### 📊 Factor Membership Risk Breakdown")
+    breakdown_data = {
+        "Fuzzy Metric Indicator": ["Age Risk (μ1)", "BMI Risk (μ2)", "BP Risk (μ3)", "Lifestyle Risk (μ4)", "Medical History Risk (μ5)"],
+        "Assigned Priority Weight": weights,
+        "Calculated Fuzzy Value": fuzzy_values
+    }
+    st.table(breakdown_data)
 
-QAYDA: Cavabın yalnız təyin olunmuş Pydantic sxeminə uyğun təmiz JSON formatında olmalıdır. Mətnə heç bir əlavə giriş və ya çıxış sözləri əlavə etmə.
-    """
-
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=user_story,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                response_schema=MentorAnalizi,
-                temperature=0.2,
-            ),
-        )
-
-        data = json.loads(response.text)
-
-        print("\n" + "=" * 50)
-        print(f"MÜRACIƏTÇİ: {data.get('muracietci_adi', 'Naməlum').upper()}")
-        print(f"TƏYİN OLUNAN TƏHSİL SƏVİYYƏSİ: {data.get('tehsil_seviyyesi', 'Bachelor/Master').upper()}")
-        print("=" * 50)
-        print(f"• Akademik İndeks: {data.get('akademik_indeks')} / 100")
-        print(f"• Profil İndeksi: {data.get('profil_indeksi')} / 100")
-        print(f"• Resurs Kompensasiya Əmsalı: {data.get('resurs_kompensasiya_emsali')} / 100")
-        print(f"• YEKUN FƏRDİ PROFİL GÜCÜ: {data.get('yekun_ferdi_profil_gucu')} / 100")
-        print(f"\n[İti Bucaq Fokusu]: {data.get('iti_bucaq_fokusu_tesviri')}\n")
-
-        print("--- AI STRATEJİ UNIVERSITET VƏ TƏQAÜD MATRİSİ ---\n")
-        for uni in data.get('universitetler', []):
-            print(f"[{uni['zona'].upper()} ZONASI]")
-            print(f"• Universitet: {uni['ad']}")
-            print(f"  Təqaüd İmkanı: {uni['teqaub_imkani']}")
-            print(f"  Qəbul Komitəsinin Rəyi: {uni['esas_sebeb']}\n")
-
-        print("--- MENTORUN YEKUN STRATEJİ TÖVSİYƏSİ ---")
-        print(data.get('strateji_tovsiye'))
-        print("=" * 50)
-
-    except Exception as e:
-        print(f"\nGenerasiya zamanı xəta baş verdi: {e}")
-
-
-if __name__ == "__main__":
-    ai_qebul_komitesi_mentoru()
+with col2:
+    st.subheader("🕸️ Comparative Radar Profile")
+    
+    # Dynamic Radar Chart Generation Loop using Matplotlib
+    labels = ['Age', 'BMI', 'Blood Pressure', 'Lifestyle', 'Medical Hist.']
+    num_vars = len(labels)
+    
+    # Split the circle into even arcs
+    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+    
+    # Connect the circular radar layout cleanly loop back
+    values = fuzzy_values.tolist()
+    values += values[:1]
+    angles += angles[:1]
+    
+    fig, ax = plt.subplots(figsize=(5, 5), subplot_kw=dict(polar=True))
+    ax.fill(angles, values, color='#ff4b4b', alpha=0.25)
+    ax.plot(angles, values, color='#ff4b4b', linewidth=2)
+    
+    ax.set_yticklabels([])  # Hide traditional grid axis text for modern layout
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels, fontsize=10)
+    ax.set_title(f"Health Vector Signature: {member_name}", size=12, y=1.1)
+    
+    st.pyplot(fig)  # Direct native layout embedding
